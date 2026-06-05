@@ -1,6 +1,6 @@
 import * as ImageManipulator from 'expo-image-manipulator'
 
-const WORKER_URL = 'https://proof-alarm-api.yasinakcokrak.workers.dev'
+const WORKER_URL = 'https://proof-alarm-api.proof-alarm.workers.dev'
 
 export type VerificationResult = {
   match: boolean
