@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { Stack, router, useRootNavigationState } from 'expo-router'
+import { Stack, router } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
 import * as Notifications from 'expo-notifications'
 import * as SplashScreen from 'expo-splash-screen'
@@ -19,9 +19,7 @@ Notifications.setNotificationHandler({
 })
 
 export default function RootLayout() {
-  const navigationState = useRootNavigationState()
   const isMounted = useRef(false)
-  const pendingVerify = useRef(false)
 
   useEffect(() => {
     isMounted.current = true
@@ -37,30 +35,28 @@ export default function RootLayout() {
     }
   }, [])
 
-  // Listener only writes to a ref — never calls router directly.
-  // Navigation is deferred until the navigator state is confirmed ready below.
   useEffect(() => {
     const sub = Notifications.addNotificationResponseReceivedListener((response) => {
       console.log('[Notifications] response received')
       console.log('[Notifications] notification content:', JSON.stringify(response.notification.request.content))
       console.log('[Notifications] action identifier:', response.actionIdentifier)
-      pendingVerify.current = true
-      console.log('[Notifications] pendingVerify set to true, navigationState.key:', navigationState?.key)
+
+      const alarmId = response.notification.request.content.data?.alarmId as string | undefined
+      console.log('[Notifications] alarmId:', alarmId)
+
+      console.log('[Navigation] scheduling router.push with 500ms delay')
+      setTimeout(() => {
+        console.log('[Navigation] attempting router.push("/alarm/verify")')
+        if (alarmId) {
+          router.push({ pathname: '/alarm/verify', params: { alarmId } })
+        } else {
+          router.push('/alarm/verify')
+        }
+        console.log('[Navigation] router.push called')
+      }, 500)
     })
     return () => sub.remove()
-  }, [navigationState?.key])
-
-  // navigationState.key becomes defined once Expo Router's navigator has
-  // finished mounting. Only then do we consume any pending navigation.
-  useEffect(() => {
-    if (!navigationState?.key) return
-    if (!pendingVerify.current) return
-    console.log('[Navigation] navigationState.key ready:', navigationState.key)
-    console.log('[Navigation] attempting router.push("/alarm/verify")')
-    pendingVerify.current = false
-    router.push('/alarm/verify')
-    console.log('[Navigation] router.push called')
-  }, [navigationState?.key])
+  }, [])
 
   return (
     <>
