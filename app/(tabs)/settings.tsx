@@ -252,7 +252,7 @@ export default function SettingsScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>About</Text>
           <View style={styles.aboutCard}>
-            <Text style={styles.aboutName}>Proof Alarm</Text>
+            <Text style={styles.aboutName}>WEAKY</Text>
             <Text style={styles.aboutDesc}>
               An alarm that won&apos;t dismiss until you walk to a specific spot and take a photo.
               Photos are verified using Claude Vision AI.

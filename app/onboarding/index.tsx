@@ -25,7 +25,7 @@ export default function OnboardingScreen() {
       <View style={styles.content}>
         <View style={styles.hero}>
           <Text style={styles.heroIcon}>⏰</Text>
-          <Text style={styles.heroTitle}>Proof Alarm</Text>
+          <Text style={styles.heroTitle}>WEAKY</Text>
           <Text style={styles.heroTagline}>
             An alarm that won't stop until you prove you're where you need to be.
           </Text>
