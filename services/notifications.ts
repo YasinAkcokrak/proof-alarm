@@ -44,8 +44,11 @@ export async function scheduleAlarm(alarm: Alarm): Promise<void> {
         content: {
           title: '⏰ Wake up!',
           body: 'Walk to your proof location to dismiss this alarm.',
-          sound: true,
+          sound: 'alarm.wav',
           priority: Notifications.AndroidNotificationPriority.MAX,
+          ios: {
+            sound: 'alarm.wav',
+          },
           data: { alarmId: alarm.id },
         },
         trigger: {
