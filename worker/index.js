@@ -53,7 +53,7 @@ export default {
             content: [
               {
                 type: 'text',
-                text: 'You are verifying if two photos show the same location in a home.\nCompare the reference photo and the current photo.\nRespond ONLY with valid JSON, no markdown, no explanation:\n{ "match": true/false, "confidence": 0.0-1.0, "reason": "one sentence max" }',
+                text: 'You are verifying if two photos show the same location inside a home. \nCompare these two images carefully.\n\nReference photo: the registered location the user saved.\nCurrent photo: taken right now by the user.\n\nConsider these factors:\n- Same room/area even if lighting is different (day vs night)\n- Same location even if angle is slightly different\n- Same place even if photo is slightly blurry\n- Ignore person\'s presence or absence\n- Focus on: walls, furniture, fixtures, windows, floors, distinctive objects\n\nBe lenient with lighting differences and minor angle changes.\nBe strict about completely wrong rooms.\n\nRespond ONLY with valid JSON, no markdown:\n{ "match": true/false, "confidence": 0.0-1.0, "reason": "one sentence" }',
               },
               {
                 type: 'image',
