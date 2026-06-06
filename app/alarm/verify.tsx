@@ -13,6 +13,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { router } from 'expo-router'
 import { CameraView, useCameraPermissions } from 'expo-camera'
 import { Audio } from 'expo-av'
+import { File, Paths } from 'expo-file-system'
 import { useLocationStore, type Location } from '../../stores/locationStore'
 import { verifyLocation, type VerificationResult } from '../../services/claude'
 import { Colors } from '../../constants/colors'
@@ -45,23 +46,19 @@ export default function VerifyScreen() {
   useEffect(() => {
     let cancelled = false
     async function loadAndPlay() {
-      console.log('[Audio] loadAndPlay start')
       try {
-        const { sound } = await Audio.Sound.createAsync(
-          require('../../assets/alarm.wav'),
-          { isLooping: true, shouldPlay: true }
-        )
-        console.log('[Audio] createAsync succeeded')
+        const customFile = new File(Paths.document, 'custom-alarm.wav')
+        const source = customFile.exists
+          ? { uri: customFile.uri }
+          : require('../../assets/alarm.wav')
+        const { sound } = await Audio.Sound.createAsync(source, { isLooping: true, shouldPlay: true })
         if (cancelled) {
-          console.log('[Audio] cancelled after load, unloading')
           await sound.unloadAsync().catch(() => {})
           return
         }
         soundRef.current = sound
-        const status = await sound.getStatusAsync()
-        console.log('[Audio] status after createAsync:', JSON.stringify(status))
-      } catch (e) {
-        console.error('[Audio] loadAndPlay error:', e)
+      } catch {
+        // no-op if asset missing or audio fails
       }
     }
     loadAndPlay()

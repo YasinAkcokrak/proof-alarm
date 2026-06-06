@@ -47,10 +47,11 @@ type AlarmCardProps = {
   alarm: Alarm
   onToggle: (id: string) => void
   onDelete: (alarm: Alarm) => void
+  onEdit: (alarm: Alarm) => void
   nextTrigger: Date | null
 }
 
-function AlarmCard({ alarm, onToggle, onDelete, nextTrigger }: AlarmCardProps) {
+function AlarmCard({ alarm, onToggle, onDelete, onEdit, nextTrigger }: AlarmCardProps) {
   return (
     <View style={styles.card}>
       <View style={styles.cardLeft}>
@@ -89,7 +90,14 @@ function AlarmCard({ alarm, onToggle, onDelete, nextTrigger }: AlarmCardProps) {
           thumbColor={alarm.enabled ? Colors.accent : '#666'}
         />
         <TouchableOpacity
-          style={styles.deleteBtn}
+          style={styles.iconBtn}
+          onPress={() => onEdit(alarm)}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <Text style={styles.editIcon}>✏</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.iconBtn}
           onPress={() => onDelete(alarm)}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
@@ -100,19 +108,29 @@ function AlarmCard({ alarm, onToggle, onDelete, nextTrigger }: AlarmCardProps) {
   )
 }
 
-type AddAlarmModalProps = {
+type AlarmModalProps = {
   visible: boolean
   onClose: () => void
   onSave: (time: string, days: number[]) => void
+  editingAlarm?: Alarm | null
 }
 
-function AddAlarmModal({ visible, onClose, onSave }: AddAlarmModalProps) {
-  const [hours, setHours] = useState(7)   // 1–12
-  const [minutes, setMinutes] = useState(0)
-  const [isPM, setIsPM] = useState(false)
-  const [selectedDays, setSelectedDays] = useState<number[]>([1, 2, 3, 4, 5])
+function AlarmModal({ visible, onClose, onSave, editingAlarm }: AlarmModalProps) {
+  const [hours, setHours] = useState(() => {
+    if (!editingAlarm) return 7
+    const h24 = Number(editingAlarm.time.split(':')[0])
+    return h24 % 12 === 0 ? 12 : h24 % 12
+  })
+  const [minutes, setMinutes] = useState(() =>
+    editingAlarm ? Number(editingAlarm.time.split(':')[1]) : 0
+  )
+  const [isPM, setIsPM] = useState(() =>
+    editingAlarm ? Number(editingAlarm.time.split(':')[0]) >= 12 : false
+  )
+  const [selectedDays, setSelectedDays] = useState<number[]>(() =>
+    editingAlarm ? [...editingAlarm.days] : [1, 2, 3, 4, 5]
+  )
 
-  // Wraps 1–12
   const adjustHours = (delta: number) =>
     setHours((h) => ((h - 1 + delta + 12) % 12) + 1)
   const incMinutes = () => setMinutes((m) => (m + 1) % 60)
@@ -128,23 +146,20 @@ function AddAlarmModal({ visible, onClose, onSave }: AddAlarmModalProps) {
       Alert.alert('No days selected', 'Select at least one day for the alarm.')
       return
     }
-    // Convert 12h → 24h for storage
     let h24 = hours
     if (isPM && hours !== 12) h24 = hours + 12
     if (!isPM && hours === 12) h24 = 0
     onSave(`${pad(h24)}:${pad(minutes)}`, selectedDays.sort((a, b) => a - b))
-    setHours(7)
-    setMinutes(0)
-    setIsPM(false)
-    setSelectedDays([1, 2, 3, 4, 5])
   }
+
+  const isEditing = !!editingAlarm
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <View style={styles.modalOverlay}>
         <View style={styles.modalSheet}>
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Add Alarm</Text>
+            <Text style={styles.modalTitle}>{isEditing ? 'Edit Alarm' : 'Add Alarm'}</Text>
             <TouchableOpacity onPress={onClose} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
               <Text style={styles.modalClose}>✕</Text>
             </TouchableOpacity>
@@ -206,7 +221,7 @@ function AddAlarmModal({ visible, onClose, onSave }: AddAlarmModalProps) {
           </View>
 
           <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
-            <Text style={styles.saveBtnText}>Add Alarm</Text>
+            <Text style={styles.saveBtnText}>{isEditing ? 'Save Changes' : 'Add Alarm'}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -215,13 +230,19 @@ function AddAlarmModal({ visible, onClose, onSave }: AddAlarmModalProps) {
 }
 
 export default function AlarmsScreen() {
-  const { alarms, addAlarm, toggleAlarm, deleteAlarm, getNextTriggerTime } = useAlarmStore()
+  const { alarms, addAlarm, updateAlarm, toggleAlarm, deleteAlarm, getNextTriggerTime } = useAlarmStore()
   const locations = useLocationStore((s) => s.locations)
   const [showModal, setShowModal] = useState(false)
+  const [editingAlarm, setEditingAlarm] = useState<Alarm | null>(null)
 
   if (locations.length === 0) {
     return <Redirect href="/onboarding" />
   }
+
+  const closeModal = useCallback(() => {
+    setShowModal(false)
+    setEditingAlarm(null)
+  }, [])
 
   const handleToggle = useCallback(
     async (id: string) => {
@@ -240,7 +261,7 @@ export default function AlarmsScreen() {
 
   const handleDelete = useCallback(
     (alarm: Alarm) => {
-      Alert.alert('Delete Alarm', `Delete alarm at ${alarm.time}?`, [
+      Alert.alert('Delete Alarm', `Delete alarm at ${formatTime12h(alarm.time)}?`, [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Delete',
@@ -255,13 +276,26 @@ export default function AlarmsScreen() {
     [deleteAlarm]
   )
 
+  const handleEdit = useCallback((alarm: Alarm) => {
+    setEditingAlarm(alarm)
+    setShowModal(true)
+  }, [])
+
   const handleSave = useCallback(
     async (time: string, days: number[]) => {
-      const alarm = addAlarm({ time, days, enabled: true })
-      await scheduleAlarm(alarm)
-      setShowModal(false)
+      if (editingAlarm) {
+        updateAlarm(editingAlarm.id, { time, days })
+        if (editingAlarm.enabled) {
+          await cancelAlarm(editingAlarm)
+          await scheduleAlarm({ ...editingAlarm, time, days })
+        }
+      } else {
+        const alarm = addAlarm({ time, days, enabled: true })
+        await scheduleAlarm(alarm)
+      }
+      closeModal()
     },
-    [addAlarm]
+    [addAlarm, updateAlarm, editingAlarm, closeModal]
   )
 
   return (
@@ -289,16 +323,19 @@ export default function AlarmsScreen() {
               alarm={item}
               onToggle={handleToggle}
               onDelete={handleDelete}
+              onEdit={handleEdit}
               nextTrigger={getNextTriggerTime(item)}
             />
           )}
         />
       )}
 
-      <AddAlarmModal
+      <AlarmModal
+        key={editingAlarm ? editingAlarm.id : 'new'}
         visible={showModal}
-        onClose={() => setShowModal(false)}
+        onClose={closeModal}
         onSave={handleSave}
+        editingAlarm={editingAlarm}
       />
     </SafeAreaView>
   )
@@ -412,8 +449,12 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: Colors.subtext,
   },
-  deleteBtn: {
+  iconBtn: {
     padding: 4,
+  },
+  editIcon: {
+    fontSize: 15,
+    color: Colors.subtext,
   },
   deleteIcon: {
     fontSize: 14,
