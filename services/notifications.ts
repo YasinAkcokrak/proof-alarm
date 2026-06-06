@@ -47,7 +47,9 @@ export async function scheduleAlarm(alarm: Alarm): Promise<void> {
           sound: 'alarm.wav',
           priority: Notifications.AndroidNotificationPriority.MAX,
           ios: {
+            critical: true,
             sound: 'alarm.wav',
+            volume: 1.0,
           },
           data: { alarmId: alarm.id },
         },
